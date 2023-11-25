@@ -12,11 +12,12 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, generator, discriminator, criterion_G, criterion_D, optimizer_G, optimizer_D, config, device):
+    def __init__(self, generator, discriminator, criterion_G, criterion_D, optimizer_G, optimizer_D, metrics, config, device):
         self.device = device
         self.config = config
         self.logger = config.get_logger("trainer", config["trainer"]["verbosity"])
 
+        self.metrics = metrcis
         self.generator = generator
         self.discriminator = discriminator
         self.criterion_G = criterion_G
