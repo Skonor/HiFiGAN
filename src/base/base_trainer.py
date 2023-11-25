@@ -12,15 +12,17 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, model: BaseModel, criterion, metrics, optimizer, config, device):
+    def __init__(self, generator, discriminator, criterion_G, criterion_D, optimizer_G, optimizer_D, config, device):
         self.device = device
         self.config = config
         self.logger = config.get_logger("trainer", config["trainer"]["verbosity"])
 
-        self.model = model
-        self.criterion = criterion
-        self.metrics = metrics
-        self.optimizer = optimizer
+        self.generator = generator
+        self.discriminator = discriminator
+        self.criterion_G = criterion_G
+        self.criterion_D = criterion_D
+        self.optimizer_G = optimizer_G
+        self.optimizer_D = optimizer_D
 
         # for interrupt saving
         self._last_epoch = 0
@@ -143,8 +145,10 @@ class BaseTrainer:
         state = {
             "arch": arch,
             "epoch": epoch,
-            "state_dict": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
+            "generator_state_dict": self.generator.state_dict(),
+            "discriminator_state_dict": self.discriminator.state_dict(),
+            "optimizer_g": self.optimizer_g.state_dict(),
+            "optimizer_d": self.optimizer_d.state_dict(),
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
@@ -175,19 +179,23 @@ class BaseTrainer:
                 "Warning: Architecture configuration given in config file is different from that "
                 "of checkpoint. This may yield an exception while state_dict is being loaded."
             )
-        self.model.load_state_dict(checkpoint["state_dict"])
+        self.generator.load_state_dict(checkpoint["generator_state_dict"])
+        self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
         if (
-                checkpoint["config"]["optimizer"] != self.config["optimizer"] or
-                checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
+                checkpoint["config"]["optimizer_g"] != self.config["optimizer_g"] or
+                checkpoint["config"]["optimizer_d"] != self.config["optimizer_d"] or
+                checkpoint["config"]["lr_scheduler_g"] != self.config["lr_scheduler_g"] or
+                checkpoint["config"]["lr_scheduler_d"] != self.config["lr_scheduler_d"]
         ):
             self.logger.warning(
                 "Warning: Optimizer or lr_scheduler given in config file is different "
                 "from that of checkpoint. Optimizer parameters not being resumed."
             )
         else:
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.optimizer_g.load_state_dict(checkpoint["optimizer_g"])
+            self.optimizer_d.load_state_dict(checkpoint["optimizer_d"])
 
         self.logger.info(
             "Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch)
@@ -197,7 +205,8 @@ class BaseTrainer:
         finetuing_path = str(finetuing_path)
         self.logger.info("Loading checkpoint: {} ...".format(finetuing_path))
         checkpoint = torch.load(finetuing_path, self.device)
-        self.model.load_state_dict(checkpoint["state_dict"])
+        self.generator.load_state_dict(checkpoint["generator_state_dict"])
+        self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
         self.logger.info(
             "Checkpoint loaded."
         )
