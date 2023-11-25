@@ -20,7 +20,7 @@ def collate_fn(dataset_items: List[dict]):
     batch_audio = torch.zeros(len(audio_lengths), max(audio_lengths))
 
     for i, ds in enumerate(dataset_items):
-        batch_audio[i, :, :audio_lengths[i]] = ds['audio']
+        batch_audio[i, :audio_lengths[i]] = ds['audio']
 
     batch_spectrogram = melspec_gen(batch_audio)
 
