@@ -1,0 +1,68 @@
+{
+  "name": "libriespeech_test",
+  "n_gpu": 1,
+  "preprocessing": {
+    "sr": 16000,
+    "spectrogram": {
+      "type": "MelSpectrogram",
+      "args": {
+      }
+    },
+    "log_spec": true
+  },
+  "augmentations": {
+    "wave": [],
+    "spectrogram": []
+  },
+  "arch": {
+    "type": "DeepSpeech2",
+    "args": {
+      "n_feats": 128,
+      "hidden_dim": 800,
+      "num_rnss": 5
+    }
+  },
+  "data": {
+    "test": {
+      "batch_size": 32,
+      "num_workers": 2,
+      "datasets": [
+        {
+        "type": "LibrispeechDataset",
+          "args": {
+            "data_dir": "/kaggle/input/librispeech",
+            "part": "test-clean"
+          }
+        }
+      ]
+    }
+  },
+  "loss": {
+    "type": "CTCLoss",
+    "args": {}
+  },
+  "metrics": [
+    {
+      "type": "ArgmaxWERMetric",
+      "args": {
+        "name": "WER (argmax)"
+      }
+    },
+    {
+      "type": "ArgmaxCERMetric",
+      "args": {
+        "name": "CER (argmax)"
+      }
+    },
+    {
+      "type": "LMBeamsearchWERMetric",
+      "args": {
+        "name": "WER (LM beamsearch)",
+        "beam_size": 100
+      }
+    }
+  ],
+  "test_params": {
+    "visualize": "wandb"
+  }
+}
