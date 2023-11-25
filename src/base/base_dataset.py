@@ -19,10 +19,12 @@ class BaseDataset(Dataset):
             self,
             index,
             config_parser: ConfigParser,
+            segment_size=8192,
             limit=None,
             max_audio_length=None,
     ):
         self.config_parser = config_parser
+        self.segment_size = segment_size
 
         self._assert_index_is_valid(index)
         index = self._filter_records_from_dataset(index, max_audio_length, limit)
@@ -35,6 +37,14 @@ class BaseDataset(Dataset):
         data_dict = self._index[ind]
         audio_path = data_dict["path"]
         audio_wave = self.load_audio(audio_path)
+
+        if audio_wave.size(1) >= self.segment_size:
+            max_audio_start = audio.size(1) - self.segment_size
+            audio_start = random.randint(0, max_audio_start)
+            audio_wave = audio_wave[:, audio_start:audio_start+self.segment_size]
+        else:
+            audio_wave = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(1)), 'constant')
+
         return {
             "audio": audio_wave,
             "audio_path": audio_path,
