@@ -1,6 +1,7 @@
 import logging
 import torch
 from typing import List
+from src.utils import MelSpectrogram
 
 logger = logging.getLogger(__name__)
 
@@ -10,36 +11,20 @@ def collate_fn(dataset_items: List[dict]):
     Collate and pad fields in dataset items
     """
 
+    melspec_gen = MelSpectrogram()
     
-    spec_lengths = []
-    text_encoded_length = []
+    audio_lengths = []
     for ds in dataset_items:
-        spec_lengths.append(ds['spectrogram'].shape[-1])
-        text_encoded_length.append(ds['text_encoded'].shape[-1])
+        audio_lengths.append(ds['audio'].shape[-1])
 
-    spec_dim = dataset_items[0]['spectrogram'].shape[1]
-    batch_spectrogram = torch.zeros(len(spec_lengths), spec_dim, max(spec_lengths))
-    batch_encoded_text = torch.zeros(len(text_encoded_length), max(text_encoded_length))
+    batch_audio = torch.zeros(len(audio_lengths), max(audio_lengths))
 
-    texts = []
-    audio_path = []
-    audio = []
     for i, ds in enumerate(dataset_items):
-        batch_spectrogram[i, :, :spec_lengths[i]] = ds['spectrogram']
-        batch_encoded_text[i, :text_encoded_length[i]] = ds['text_encoded']
-        texts.append(ds['text'])
-        audio_path.append(ds['audio_path'])
-        audio.append(ds['audio'])
+        batch_audio[i, :, :audio_lengths[i]] = ds['audio']
 
-    text_encoded_length = torch.tensor(text_encoded_length).long()
-    spec_lengths = torch.tensor(spec_lengths).long()
+    batch_spectrogram = melspec_gen(batch_audio)
 
     return {
         'spectrogram': batch_spectrogram,
-        'spectrogram_length': spec_lengths,
-        'text_encoded': batch_encoded_text,
-        'text_encoded_length': text_encoded_length,
-        'text': texts,
-        'audio_path': audio_path,
-        'audio': audio
+        'audio': batch_audio
     }
