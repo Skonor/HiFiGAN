@@ -1,5 +1,7 @@
-from src.loss.CTCLossWrapper import CTCLossWrapper as CTCLoss
+from src.loss.DiscriminatorLoss import DiscriminatorLoss
+from src.loss.GeneratorLoss import GeneratorLoss
 
 __all__ = [
-    "CTCLoss"
+    "DiscriminatorLoss",
+    "GeneratorLoss"
 ]

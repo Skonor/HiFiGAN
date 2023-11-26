@@ -8,7 +8,6 @@ import torchaudio
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from src.base.base_text_encoder import BaseTextEncoder
 from src.utils.parse_config import ConfigParser
 
 logger = logging.getLogger(__name__)

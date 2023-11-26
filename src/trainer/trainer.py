@@ -107,9 +107,12 @@ class Trainer(BaseTrainer):
             except RuntimeError as e:
                 if "out of memory" in str(e) and self.skip_oom:
                     self.logger.warning("OOM on batch. Skipping batch.")
-                    for p in self.model.parameters():
+                    for p in self.generator.parameters():
                         if p.grad is not None:
                             del p.grad  # free some memory
+                    for p in self.discriminator.parameters():
+                        if p.grad is not None:
+                            del p.grad 
                     torch.cuda.empty_cache()
                     continue
                 else:
@@ -148,7 +151,7 @@ class Trainer(BaseTrainer):
         for key in batch:
             batch[key] = batch[key].detach()
 
-    def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
+    def process_batch(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
 
         generated_audio = self.generator(**batch)
@@ -191,6 +194,19 @@ class Trainer(BaseTrainer):
         generated_batch["loss_D"] = loss_D
         return batch, generated_batch
 
+    def process_batch_eval(self, batch, metrics: MetricTracker):
+        batch = self.move_batch_to_device(batch, self.device)
+
+        generated_audio = self.generator(**batch)
+        generated_batch["generated_melsepc"] = self.mel(generated_batch["generated_audio"])
+        mel_loss  = F.l1_loss(batch["spectrogram"], generated_batch["generated_melsepc"])
+        metrics.update("mel_loss", mel_loss.item())
+
+        for met in self.metrics:
+            metrics.update(met.name, met(**batch, **generated_batch))
+
+        return batch, generated_batch
+
     def _evaluation_epoch(self, epoch, part, dataloader):
         """
         Validate after training an epoch
@@ -201,12 +217,14 @@ class Trainer(BaseTrainer):
         self.generator.eval()
         self.evaluation_metrics.reset()
         with torch.no_grad():
-            return
+            batch, generated_batch = process_batch_eval(batch, self.evaluation_metrics)
 
         self.writer.set_step(epoch * self.len_epoch, part)
         self._log_scalars(self.evaluation_metrics)
-        self._log_predictions(**batch)
-        self._log_spectrogram(batch["spectrogram"])
+        self._log_predictions(**batch, **generated_batch)
+        #self._log_spectrogram(batch["spectrogram"])
+
+        return self.evaluation_metrics.result()
 
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
@@ -248,8 +266,8 @@ class Trainer(BaseTrainer):
         self.writer.add_image("spectrogram", ToTensor()(image))
 
     @torch.no_grad()
-    def get_grad_norm(self, norm_type=2):
-        parameters = self.model.parameters()
+    def get_grad_norm(self, model, norm_type=2):
+        parameters = model.parameters()
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]
         parameters = [p for p in parameters if p.grad is not None]

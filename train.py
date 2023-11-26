@@ -26,45 +26,54 @@ np.random.seed(SEED)
 def main(config):
     logger = config.get_logger("train")
 
-    # text_encoder
-    text_encoder = config.get_text_encoder()
-
     # setup data_loader instances
-    dataloaders = get_dataloaders(config, text_encoder)
+    dataloaders = get_dataloaders(config)
 
     # build model architecture, then print to console
-    model = config.init_obj(config["arch"], module_arch, n_class=len(text_encoder))
-    logger.info(model)
+    generator = config.init_obj(config["arch"]["generator"], module_arch)
+    logger.info(generator)
+
+    discriminator = config.init_obj(config["arch"]["discriminator"], module_arch)
+    logger.info(discriminator)
 
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config["n_gpu"])
-    model = model.to(device)
+    generator = generator.to(device)
+    discriminator = discriminator.to(device)
     if len(device_ids) > 1:
-        model = torch.nn.DataParallel(model, device_ids=device_ids)
+        generator = torch.nn.DataParallel(generator, device_ids=device_ids)
+        discriminator = torch.nn.DataParallel(discriminator, device_ids=device_ids)
 
     # get function handles of loss and metrics
-    loss_module = config.init_obj(config["loss"], module_loss).to(device)
+    loss_module_G = config.init_obj(config["loss"]["loss_G"], module_loss).to(device)
+    loss_module_D = config.init_obj(config["loss"]["loss_D"], module_loss).to(device)
     metrics = [
-        config.init_obj(metric_dict, module_metric, text_encoder=text_encoder)
+        config.init_obj(metric_dict, module_metric)
         for metric_dict in config["metrics"]
     ]
 
     # build optimizer, learning rate scheduler. delete every line containing lr_scheduler for
     # disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = config.init_obj(config["optimizer"], torch.optim, trainable_params)
-    lr_scheduler = config.init_obj(config["lr_scheduler"], torch.optim.lr_scheduler, optimizer)
+    trainable_params_G = filter(lambda p: p.requires_grad, generator.parameters())
+    trainable_params_D = filter(lambda p: p.requires_grad, discriminator.parameters())
+    optimizer_G = config.init_obj(config["optimizers"]["optimizer_G"], torch.optim, trainable_params_G)
+    optimizer_D = config.init_obj(config["optimizers"]["optimizer_D"], torch.optim, trainable_params_D)
+    lr_scheduler_G = config.init_obj(config["lr_scheduler"]["lr_scheduler_G"], torch.optim.lr_scheduler, optimizer_G)
+    lr_scheduler_D = config.init_obj(config["lr_scheduler"]["lr_scheduler_D"], torch.optim.lr_scheduler, optimizer_D)
 
     trainer = Trainer(
-        model,
-        loss_module,
+        generator,
+        discriminator,
+        loss_module_G,
+        loss_module_D,
+        optimizer_G,
+        optimizer_D,
         metrics,
-        optimizer,
-        text_encoder=text_encoder,
         config=config,
         device=device,
         dataloaders=dataloaders,
-        lr_scheduler=lr_scheduler,
+        lr_scheduler_G=lr_scheduler_G,
+        lr_scheduler_D=lr_scheduler_D,
         len_epoch=config["trainer"].get("len_epoch", None)
     )
 
@@ -105,7 +114,6 @@ if __name__ == "__main__":
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple("CustomArgs", "flags type target")
     options = [
-        CustomArgs(["--lr", "--learning_rate"], type=float, target="optimizer;args;lr"),
         CustomArgs(
             ["--bs", "--batch_size"], type=int, target="data_loader;args;batch_size"
         ),
