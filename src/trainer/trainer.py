@@ -11,10 +11,9 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
 from src.base import BaseTrainer
-from src.base.base_text_encoder import BaseTextEncoder
 from src.logger.utils import plot_spectrogram_to_buf
-from src.metric.utils import calc_cer, calc_wer
 from src.utils import inf_loop, MetricTracker
+from src.utils import MelSpectrogram
 
 
 class Trainer(BaseTrainer):
@@ -24,23 +23,27 @@ class Trainer(BaseTrainer):
 
     def __init__(
             self,
-            model,
-            criterion,
+            generator,
+            discriminator,
+            criterion_G,
+            criterion_D,
+            optimizer_G,
+            optimizer_D,
             metrics,
-            optimizer,
             config,
             device,
             dataloaders,
-            text_encoder,
-            lr_scheduler=None,
+            lr_scheduler_G=None,
+            lr_scheduler_D=None,
             len_epoch=None,
             skip_oom=True,
     ):
-        super().__init__(model, criterion, metrics, optimizer, config, device)
+        super().__init__(generator, discriminator, criterion_G, criterion_D, optimizer_G, optimizer_D, metrics, config, device)
         self.skip_oom = skip_oom
-        self.text_encoder = text_encoder
         self.config = config
         self.train_dataloader = dataloaders["train"]
+        self.mel = MelSpectrogram()
+
         if len_epoch is None:
             # epoch-based training
             self.len_epoch = len(self.train_dataloader)
@@ -53,10 +56,11 @@ class Trainer(BaseTrainer):
         self.log_step = 50
 
         self.train_metrics = MetricTracker(
-            "loss", "grad norm", *[m.name for m in self.metrics], writer=self.writer
+            "loss_G", "loss_D", "mel_loss", "fm_loss", "adv_loss_G",
+            *[m.name for m in self.metrics], writer=self.writer
         )
         self.evaluation_metrics = MetricTracker(
-            "loss", *[m.name for m in self.metrics], writer=self.writer
+            "mel_loss", *[m.name for m in self.metrics], writer=self.writer
         )
 
     @staticmethod
@@ -64,14 +68,20 @@ class Trainer(BaseTrainer):
         """
         Move all necessary tensors to the HPU
         """
-        for tensor_for_gpu in ["spectrogram", "text_encoded"]:
+        for tensor_for_gpu in ["spectrogram", "audio"]:
             batch[tensor_for_gpu] = batch[tensor_for_gpu].to(device)
         return batch
 
-    def _clip_grad_norm(self):
+    def _clip_grad_norm_G(self):
         if self.config["trainer"].get("grad_norm_clip", None) is not None:
             clip_grad_norm_(
-                self.model.parameters(), self.config["trainer"]["grad_norm_clip"]
+                self.generator.parameters(), self.config["trainer"]["grad_norm_clip"]
+            )
+
+    def _clip_grad_norm_D(self):
+        if self.config["trainer"].get("grad_norm_clip", None) is not None:
+            clip_grad_norm_(
+                self.discriminator.parameters(), self.config["trainer"]["grad_norm_clip"]
             )
 
     def _train_epoch(self, epoch):
@@ -81,14 +91,15 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
-        self.model.train()
+        self.generator.train()
+        self.discriminator.train()
         self.train_metrics.reset()
         self.writer.add_scalar("epoch", epoch)
         for batch_idx, batch in enumerate(
                 tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
         ):
             try:
-                batch = self.process_batch(
+                batch, generated_batch = self.process_batch(
                     batch,
                     is_train=True,
                     metrics=self.train_metrics,
@@ -103,19 +114,21 @@ class Trainer(BaseTrainer):
                     continue
                 else:
                     raise e
-            self.train_metrics.update("grad norm", self.get_grad_norm())
             if batch_idx % self.log_step == 0:
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.logger.debug(
-                    "Train Epoch: {} {} Loss: {:.6f}".format(
-                        epoch, self._progress(batch_idx), batch["loss"].item()
+                    "Train Epoch: {} {} Loss G: {:.6f}; Loss D: {:.6f}".format(
+                        epoch, self._progress(batch_idx), generated_batch["loss_G"].item(), generated_batch["loss_D"].item()
                     )
                 )
                 self.writer.add_scalar(
-                    "learning rate", self.lr_scheduler.get_last_lr()[0]
+                    "learning rate G", self.lr_scheduler_G.get_last_lr()[0]
                 )
-                self._log_predictions(**batch)
-                self._log_spectrogram(batch["spectrogram"])
+                self.writer.add_scalar(
+                    "learning rate D", self.lr_scheduler_D.get_last_lr()[0]
+                )
+                self._log_predictions(**batch, **generated_batch)
+                #self._log_spectrogram(batch["spectrogram"])
                 self._log_scalars(self.train_metrics)
                 # we don't want to reset train metrics at the start of every epoch
                 # because we are interested in recent train metrics
@@ -131,32 +144,52 @@ class Trainer(BaseTrainer):
 
         return log
 
+    def _detach_batch(self, batch):
+        for key in batch:
+            batch[key] = batch[key].detach()
+
     def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
-        if is_train:
-            self.optimizer.zero_grad()
-        outputs = self.model(**batch)
-        if type(outputs) is dict:
-            batch.update(outputs)
-        else:
-            batch["logits"] = outputs
 
-        batch["log_probs"] = F.log_softmax(batch["logits"], dim=-1)
-        batch["log_probs_length"] = self.model.transform_input_lengths(
-            batch["spectrogram_length"]
-        )
-        batch["loss"] = self.criterion(**batch)
-        if is_train:
-            batch["loss"].backward()
-            self._clip_grad_norm()
-            self.optimizer.step()
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
+        generated_audio = self.generator(**batch)
+        generated_batch["generated_melsepc"] = self.mel(generated_batch["generated_audio"])
 
-        metrics.update("loss", batch["loss"].item())
+        self.optimizer_D.zero_grad()
+
+        discriminated_batch = self.discriminator(**batch, **generated_batch)
+
+        disc_losses = self.criterion_D(**discriminated_batch)
+
+        loss_D = disc_losses["loss_D"]
+
+        loss_D.backward()
+
+        self._clip_grad_norm_D()
+        self.optimizer_D.step()
+
+        self.optimizer_G.zero_grad()
+
+        discriminated_batch = self.discriminator(**batch, **self._detach_batch(generated_batch))
+
+        generator_losses = self.Criterion_G(**batch, **generated_batch)
+
+        loss_G = generator_losses["loss_G"]
+
+        loss_G.backward()
+
+        self._clip_grad_norm_G()
+        self.optimizer_G.step()
+
+        metrics.update("loss_D", loss_D.item())
+        for loss in ["loss_G, mel_loss, fm_loss, adv_loss_G"]:
+            metrics.update(loss, generator_losses[loss])
+
         for met in self.metrics:
-            metrics.update(met.name, met(**batch))
-        return batch
+            metrics.update(met.name, met(**batch, **generated_batch, **discriminated_batch))
+
+        generated_batch["loss_G"] = loss_G
+        generated_batch["loss_D"] = loss_D
+        return batch, generated_batch
 
     def _evaluation_epoch(self, epoch, part, dataloader):
         """
@@ -165,28 +198,15 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains information about validation
         """
-        self.model.eval()
+        self.generator.eval()
         self.evaluation_metrics.reset()
         with torch.no_grad():
-            for batch_idx, batch in tqdm(
-                    enumerate(dataloader),
-                    desc=part,
-                    total=len(dataloader),
-            ):
-                batch = self.process_batch(
-                    batch,
-                    is_train=False,
-                    metrics=self.evaluation_metrics,
-                )
-            self.writer.set_step(epoch * self.len_epoch, part)
-            self._log_scalars(self.evaluation_metrics)
-            self._log_predictions(**batch)
-            self._log_spectrogram(batch["spectrogram"])
+            return
 
-        # add histogram of model parameters to the tensorboard
-        for name, p in self.model.named_parameters():
-            self.writer.add_histogram(name, p, bins="auto")
-        return self.evaluation_metrics.result()
+        self.writer.set_step(epoch * self.len_epoch, part)
+        self._log_scalars(self.evaluation_metrics)
+        self._log_predictions(**batch)
+        self._log_spectrogram(batch["spectrogram"])
 
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
@@ -200,50 +220,25 @@ class Trainer(BaseTrainer):
 
     def _log_predictions(
             self,
-            text,
-            log_probs,
-            log_probs_length,
-            audio_path,
+            generated_audio,
             audio,
-            examples_to_log=10,
+            audio_path,
+            examples_to_log=5,
             *args,
             **kwargs,
     ):
         
         if self.writer is None:
             return
-        
-        probs = torch.exp(log_probs.cpu())
-        beamsearch_texts = [self.text_encoder.ctc_beam_search(b_prob[:length], length)[0].text for b_prob, length in zip(probs, log_probs_length.numpy())]
-        
-        argmax_inds = log_probs.cpu().argmax(-1).numpy()
-        argmax_inds = [
-            inds[: int(ind_len)]
-            for inds, ind_len in zip(argmax_inds, log_probs_length.numpy())
-        ]
-        argmax_texts_raw = [self.text_encoder.decode(inds) for inds in argmax_inds]
-        argmax_texts = [self.text_encoder.ctc_decode(inds) for inds in argmax_inds]
-        tuples = list(zip(argmax_texts, text, argmax_texts_raw, beamsearch_texts, audio_path, audio))
+
+        tuples = list(zip(audio.cpu(), generated_audio.cpu(), audio_path))
         shuffle(tuples)
         rows = {}
-        for pred, target, raw_pred, beamsearch_pred, audio_path, audio in tuples[:examples_to_log]:
-            target = BaseTextEncoder.normalize_text(target)
-            wer = calc_wer(target, pred) * 100
-            cer = calc_cer(target, pred) * 100
-            bs_wer = calc_wer(target, beamsearch_pred) * 100
-            bs_cer = calc_cer(target, beamsearch_pred) * 100
+        for audio, generated_audio in tuples[:examples_to_log]:
 
             rows[Path(audio_path).name] = {
                 "orig_audio": self.writer.wandb.Audio(audio_path), 
-                "augm_audio": self.writer.wandb.Audio(audio.squeeze().numpy(), sample_rate=16000),
-                "target": target,
-                "raw prediction": raw_pred,
-                "predictions": pred,
-                "beamsearch predictions": beamsearch_pred,
-                "wer": wer,
-                "cer": cer,
-                "beamsearch wer": bs_wer,
-                "beamsearch cer": bs_cer
+                "generated_audio": self.writer.wandb.Audio(generated_audio.squeeze().numpy(), sample_rate=22050),
             }
         self.writer.add_table("predictions", pd.DataFrame.from_dict(rows, orient="index"))
 
