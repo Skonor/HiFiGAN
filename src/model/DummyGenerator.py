@@ -4,7 +4,7 @@ from torch.nn import Sequential
 from src.base import BaseModel
 
 
-class HiFiGenerator(nn.Module):
+class DummyGenerator(nn.Module):
     def __init__(self):
         super().__init__()
 
