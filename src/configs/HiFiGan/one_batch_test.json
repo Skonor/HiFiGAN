@@ -40,17 +40,17 @@
     "optimizer_G": {
       "type": "AdamW",
       "args": {
-        "lr": 2e-3,
+        "lr": 1e-2,
         "betas": [0.8, 0.99],
-        "weight_decay": 0.01
+        "weight_decay": 0.0
       }
     },
     "optimizer_D": {
       "type": "AdamW",
       "args": {
-        "lr": 2e-3,
+        "lr": 1e-2,
         "betas": [0.8, 0.99],
-        "weight_decay": 0.01
+        "weight_decay": 0.0
       }
     }
   },
