@@ -264,7 +264,8 @@ class Trainer(BaseTrainer):
 
             rows[Path(audio_path).name] = {
                 "orig_audio": self.writer.wandb.Audio(audio_path), 
-                "generated_audio": self.writer.wandb.Audio(gen_audio.squeeze().numpy(), sample_rate=22050),
+                "cutted_audio": self.writer.wandb.Audio(audio.squeeze().detach().numpy(), sample_rate=22050),
+                "generated_audio": self.writer.wandb.Audio(gen_audio.squeeze().detach().numpy(), sample_rate=22050),
             }
         self.writer.add_table("predictions", pd.DataFrame.from_dict(rows, orient="index"))
 
