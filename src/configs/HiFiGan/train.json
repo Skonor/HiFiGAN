@@ -79,10 +79,10 @@
     }
   },
   "trainer": {
-    "epochs": 3000,
+    "epochs": 100,
     "save_dir": "saved/",
-    "save_period": 300,
-    "verbosity": 2,
+    "save_period": 4,
+    "verbosity": 0,
     "visualize": "wandb",
     "wandb_project": "HiFiGan_project"
   }
