@@ -40,6 +40,7 @@ class BaseDataset(Dataset):
         if audio_wave.size(1) >= self.segment_size:
             max_audio_start = audio_wave.size(1) - self.segment_size
             audio_start = random.randint(0, max_audio_start)
+            audio_start = 0 # !!!!!! REMOVE LATER, JUST FOR ONE BATCH
             audio_wave = audio_wave[:, audio_start:audio_start+self.segment_size]
         else:
             audio_wave = torch.nn.functional.pad(audio_wave, (0, self.segment_size - audio_wave.size(1)), 'constant')

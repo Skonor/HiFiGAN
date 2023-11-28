@@ -82,11 +82,10 @@
   "trainer": {
     "epochs": 10,
     "save_dir": "saved/",
-    "save_period": 100,
+    "save_period": 1000,
     "verbosity": 2,
-    "monitor": "min val_loss",
     "visualize": "wandb",
     "wandb_project": "HiFiGan_project",
-    "len_epoch": 10
+    "len_epoch": 100
   }
 }
