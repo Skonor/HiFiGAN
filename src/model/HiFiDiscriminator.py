@@ -1,6 +1,7 @@
 import torch.nn as nn 
 import torch.nn.functional as F
 from src.base import BaseModel
+from torch.nn.utils import weight_norm
 
 
 
@@ -9,12 +10,12 @@ class ScaleDiscriminator(nn.Module):
         super().__init__()
 
         self.body = nn.ModuleList([
-            nn.Conv1d(1, 16, kernel_size=15, stride=1, padding='same'),
-            nn.Conv1d(16, 64, kernel_size=41, stride=4, groups=4, padding=20),
-            nn.Conv1d(64, 256, kernel_size=41, stride=4, groups=16, padding=20),
-            nn.Conv1d(256, 1024, kernel_size=41, stride=4, groups=64, padding=20),
-            nn.Conv1d(1024, 1024, kernel_size=41, stride=4, groups=256, padding=20),
-            nn.Conv1d(1024, 1024, kernel_size=5, stride=1, padding='same')
+            weight_norm(nn.Conv1d(1, 16, kernel_size=15, stride=1, padding='same')),
+            weight_norm(nn.Conv1d(16, 64, kernel_size=41, stride=4, groups=4, padding=20)),
+            weight_norm(nn.Conv1d(64, 256, kernel_size=41, stride=4, groups=16, padding=20)),
+            weight_norm(nn.Conv1d(256, 1024, kernel_size=41, stride=4, groups=64, padding=20)),
+            weight_norm(nn.Conv1d(1024, 1024, kernel_size=41, stride=4, groups=256, padding=20)),
+            weight_norm(nn.Conv1d(1024, 1024, kernel_size=5, stride=1, padding='same'))
             ])
 
         self.last_conv = nn.Conv1d(1024, 1, kernel_size=3, padding='same')
@@ -63,15 +64,15 @@ class PeriodDiscriminator(nn.Module):
 
         self.p = period
         self.body = nn.ModuleList([
-            nn.Conv2d(1, 64, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0)),
-            nn.Conv2d(64, 128, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0)),
-            nn.Conv2d(128, 256, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0)),
-            nn.Conv2d(256, 512, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0)),
-            nn.Conv2d(512, 1024, kernel_size=(5, 1), padding=(2, 0))
+            weight_norm(nn.Conv2d(1, 64, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0))),
+            weight_norm(nn.Conv2d(64, 128, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0))),
+            weight_norm(nn.Conv2d(128, 256, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0))),
+            weight_norm(nn.Conv2d(256, 512, kernel_size=(5, 1), stride=(3, 1), padding=(2, 0))),
+            weight_norm(nn.Conv2d(512, 1024, kernel_size=(5, 1), padding=(2, 0)))
             ])
                                   
         
-        self.last_conv = nn.Conv2d(1024, 1, kernel_size=(3, 1), padding=(1, 0))
+        self.last_conv = weight_norm(nn.Conv2d(1024, 1, kernel_size=(3, 1), padding=(1, 0)))
 
         
     
