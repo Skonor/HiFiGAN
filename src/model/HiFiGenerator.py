@@ -20,10 +20,9 @@ class ResBlock(nn.Module):
             self.res_layers.append(nn.Sequential(*Dm_block))
     
     def forward(self, x):
-        out = 0.
         for res_layer in self.res_layers:
-            out = out + res_layer(x)
-        return out
+            x = x + res_layer(x)
+        return x
 
 
 class MultiReceptieveFieldFusion(nn.Module):
