@@ -148,15 +148,15 @@ class Trainer(BaseTrainer):
         return log
 
     def _detach_batch(self, batch):
+        detached_batch = {}
         for key in batch:
-            batch[key] = batch[key].detach()
-        return batch
+            detached_batch[key] = batch[key].detach()
+        return detached_batch
 
     def process_batch(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
 
         generated_batch = self.generator(**batch)
-        generated_batch["gen_spectrogram"] = self.mel(generated_batch["gen_audio"])
 
         self.optimizer_D.zero_grad()
 
@@ -173,7 +173,7 @@ class Trainer(BaseTrainer):
 
         self.optimizer_G.zero_grad()
 
-
+        generated_batch["gen_spectrogram"] = self.mel(generated_batch["gen_audio"])
         discriminated_batch = self.discriminator(**batch, **generated_batch)
 
         generator_losses = self.criterion_G(**batch, **generated_batch, **discriminated_batch)

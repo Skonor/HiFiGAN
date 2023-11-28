@@ -20,11 +20,11 @@ class GeneratorLoss(nn.Module):
 
         adv_loss_mpd = 0.
         for gen_k in pred_gen_mpd:
-            adv_loss_mpd += ((gen_k - 1)**2).mean()
+            adv_loss_mpd = adv_loss_mpd + ((gen_k - 1)**2).mean()
     
         adv_loss_msd = 0.
         for gen_k in pred_gen_msd:
-            adv_loss_msd += ((gen_k - 1)**2).mean()
+            adv_loss_msd = adv_loss_msd + ((gen_k - 1)**2).mean()
 
         adv_loss = adv_loss_mpd + adv_loss_msd
 
