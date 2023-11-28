@@ -149,6 +149,8 @@ class Trainer(BaseTrainer):
             val_log = self._evaluation_epoch(epoch, part, dataloader)
             log.update(**{f"{part}_{name}": value for name, value in val_log.items()})
 
+        self._log_test_audio()
+
         return log
 
     def _detach_batch(self, batch):
