@@ -152,6 +152,11 @@ class Trainer(BaseTrainer):
 
         self._log_test_audio()
 
+        if self.lr_scheduler_D is not None:
+            self.lr_scheduler_D.step()
+        if self.lr_scheduler_G is not None:
+            self.lr_scheduler_G.step()
+
         return log
 
     def _detach_batch(self, batch):
@@ -191,11 +196,6 @@ class Trainer(BaseTrainer):
 
         self._clip_grad_norm_G()
         self.optimizer_G.step()
-
-        if self.lr_scheduler_D is not None:
-            self.lr_scheduler_D.step()
-        if self.lr_scheduler_G is not None:
-            self.lr_scheduler_G.step()
 
         metrics.update("loss_D", loss_D.item())
         for loss in ["loss_G", "mel_loss", "fm_loss", "adv_loss_G"]:
