@@ -37,15 +37,19 @@
   },
   "optimizers": {
     "optimizer_G": {
-      "type": "SGD",
+      "type": "AdamW",
       "args": {
-        "lr": 1e-2
+        "lr": 2e-4,
+        "betas": [0.8, 0.99],
+        "weight_decay": 0.01
       }
     },
     "optimizer_D": {
-      "type": "SGD",
+      "type": "AdamW",
       "args": {
-        "lr": 1e-2
+        "lr": 2e-4,
+        "betas": [0.8, 0.99],
+        "weight_decay": 0.01
       }
     }
   },
@@ -62,23 +66,15 @@
   "metrics": [],
   "lr_scheduler": {
     "lr_scheduler_G": {
-      "type": "OneCycleLR",
+      "type": "ExponentialLR",
       "args": {
-        "steps_per_epoch": 10,
-        "epochs": 10,
-        "anneal_strategy": "cos",
-        "max_lr": 1e-2,
-        "pct_start": 0.2
+        "gamma": 1.0
       }
     },
     "lr_scheduler_D": {
-      "type": "OneCycleLR",
+      "type": "ExponentialLR",
       "args": {
-        "steps_per_epoch": 10,
-        "epochs": 10,
-        "anneal_strategy": "cos",
-        "max_lr": 1e-2,
-        "pct_start": 0.2
+        "gamma": 1.0
       }
     }
   },

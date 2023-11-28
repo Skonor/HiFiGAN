@@ -37,7 +37,9 @@ class MelSpectrogram(nn.Module):
             n_fft=config.n_fft,
             f_min=config.f_min,
             f_max=config.f_max,
-            n_mels=config.n_mels
+            n_mels=config.n_mels,
+            center=False,
+            pad=(config.n_fft - config.hop_length) // 2
         )
         
 
@@ -65,6 +67,5 @@ class MelSpectrogram(nn.Module):
             .clamp_(min=1e-5) \
             .log_()
         
-        mel = mel[:, :, 1:] # !!!! revisit later
 
         return mel
