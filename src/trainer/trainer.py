@@ -160,7 +160,7 @@ class Trainer(BaseTrainer):
 
         self.optimizer_D.zero_grad()
 
-        discriminated_batch = self.discriminator(**batch, **generated_batch)
+        discriminated_batch = self.discriminator(**batch, **self._detach_batch(generated_batch))
 
         disc_losses = self.criterion_D(**discriminated_batch)
 
@@ -174,7 +174,7 @@ class Trainer(BaseTrainer):
         self.optimizer_G.zero_grad()
 
 
-        discriminated_batch = self.discriminator(**batch, **self._detach_batch(generated_batch))
+        discriminated_batch = self.discriminator(**batch, **generated_batch)
 
         generator_losses = self.criterion_G(**batch, **generated_batch, **discriminated_batch)
 
