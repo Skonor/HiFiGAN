@@ -39,6 +39,7 @@ class MelSpectrogram(nn.Module):
             f_max=config.f_max,
             n_mels=config.n_mels
         )
+        
 
         # The is no way to set power in constructor in 0.5.0 version.
         self.mel_spectrogram.spectrogram.power = config.power
@@ -63,5 +64,7 @@ class MelSpectrogram(nn.Module):
         mel = self.mel_spectrogram(audio) \
             .clamp_(min=1e-5) \
             .log_()
+        
+        mel = mel[:, :, 1:] # !!!! revisit later
 
         return mel

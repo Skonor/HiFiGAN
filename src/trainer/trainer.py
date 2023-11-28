@@ -150,12 +150,13 @@ class Trainer(BaseTrainer):
     def _detach_batch(self, batch):
         for key in batch:
             batch[key] = batch[key].detach()
+        return batch
 
     def process_batch(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
 
         generated_batch = self.generator(**batch)
-        generated_batch["gen_melsepc"] = self.mel(generated_batch["gen_audio"])
+        generated_batch["gen_spectrogram"] = self.mel(generated_batch["gen_audio"])
 
         self.optimizer_D.zero_grad()
 
@@ -172,9 +173,10 @@ class Trainer(BaseTrainer):
 
         self.optimizer_G.zero_grad()
 
+
         discriminated_batch = self.discriminator(**batch, **self._detach_batch(generated_batch))
 
-        generator_losses = self.Criterion_G(**batch, **generated_batch)
+        generator_losses = self.criterion_G(**batch, **generated_batch, **discriminated_batch)
 
         loss_G = generator_losses["loss_G"]
 
@@ -189,7 +191,7 @@ class Trainer(BaseTrainer):
             self.lr_scheduler_G.step()
 
         metrics.update("loss_D", loss_D.item())
-        for loss in ["loss_G, mel_loss, fm_loss, adv_loss_G"]:
+        for loss in ["loss_G", "mel_loss", "fm_loss", "adv_loss_G"]:
             metrics.update(loss, generator_losses[loss])
 
         for met in self.metrics:
@@ -203,8 +205,8 @@ class Trainer(BaseTrainer):
         batch = self.move_batch_to_device(batch, self.device)
 
         generated_batch = self.generator(**batch)
-        generated_batch["generated_melsepc"] = self.mel(generated_batch["generated_audio"])
-        mel_loss  = F.l1_loss(batch["spectrogram"], generated_batch["generated_melsepc"])
+        generated_batch["gen_melsepc"] = self.mel(generated_batch["gen_audio"])
+        mel_loss  = F.l1_loss(batch["spectrogram"], generated_batch["gen_melsepc"])
         metrics.update("mel_loss", mel_loss.item())
 
         for met in self.metrics:
@@ -222,7 +224,8 @@ class Trainer(BaseTrainer):
         self.generator.eval()
         self.evaluation_metrics.reset()
         with torch.no_grad():
-            batch, generated_batch = self.process_batch_eval(batch, self.evaluation_metrics)
+             for batch_idx, batch in enumerate(tqdm(dataloader, desc="train", total=self.len_epoch)):
+                batch, generated_batch = self.process_batch_eval(batch, self.evaluation_metrics)
 
         self.writer.set_step(epoch * self.len_epoch, part)
         self._log_scalars(self.evaluation_metrics)
@@ -243,7 +246,7 @@ class Trainer(BaseTrainer):
 
     def _log_predictions(
             self,
-            generated_audio,
+            gen_audio,
             audio,
             audio_path,
             examples_to_log=5,
@@ -254,14 +257,14 @@ class Trainer(BaseTrainer):
         if self.writer is None:
             return
 
-        tuples = list(zip(audio.cpu(), generated_audio.cpu(), audio_path))
+        tuples = list(zip(audio.cpu(), gen_audio.cpu(), audio_path))
         shuffle(tuples)
         rows = {}
-        for audio, generated_audio in tuples[:examples_to_log]:
+        for audio, gen_audio, audio_path in tuples[:examples_to_log]:
 
             rows[Path(audio_path).name] = {
                 "orig_audio": self.writer.wandb.Audio(audio_path), 
-                "generated_audio": self.writer.wandb.Audio(generated_audio.squeeze().numpy(), sample_rate=22050),
+                "generated_audio": self.writer.wandb.Audio(gen_audio.squeeze().numpy(), sample_rate=22050),
             }
         self.writer.add_table("predictions", pd.DataFrame.from_dict(rows, orient="index"))
 

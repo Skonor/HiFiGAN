@@ -10,7 +10,7 @@ class GeneratorLoss(nn.Module):
         super().__init__()
 
         self.lambda_mel = 45.0
-        self.lamda_fm = 2.
+        self.lambda_fm = 2.
 
 
     def forward(self, pred_gen_mpd, pred_gen_msd, fm_real_mpd, fm_real_msd, 
@@ -29,12 +29,14 @@ class GeneratorLoss(nn.Module):
         adv_loss = adv_loss_mpd + adv_loss_msd
 
         fm_loss_mpd = 0.
-        for f_real, f_gen in zip(fm_real_mpd, fm_gen_mpd):
-            fm_loss_mpd += F.l1_loss(f_real, f_gen)
+        for f_real_sub, f_gen_sub in zip(fm_real_mpd, fm_gen_mpd):
+            for f_real, f_gen in zip(f_real_sub, f_gen_sub):
+                fm_loss_mpd = fm_loss_mpd + F.l1_loss(f_real, f_gen)
 
         fm_loss_msd = 0.
-        for f_real, f_gen in zip(fm_real_msd, fm_gen_msd):
-            fm_loss_msd += F.l1_loss(f_real, f_gen)
+        for f_real_sub, f_gen_sub in zip(fm_real_msd, fm_gen_msd):
+            for f_real, f_gen in zip(f_real_sub, f_gen_sub):
+                fm_loss_msd = fm_loss_msd + F.l1_loss(f_real, f_gen)
 
         fm_loss = fm_loss_mpd + fm_loss_msd
 

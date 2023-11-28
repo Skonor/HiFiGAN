@@ -33,19 +33,6 @@
           }
         }
       ]
-    },
-    "val": {
-      "batch_size": 3,
-      "num_workers": 0,
-      "datasets": [
-        {
-          "type": "LJspeechDataset",
-          "args": {
-            "part": "train",
-            "limit": 3
-          }
-        }
-      ]
     }
   },
   "optimizers": {
