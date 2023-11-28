@@ -13,7 +13,7 @@ from tqdm import tqdm
 from src.base import BaseTrainer
 from src.logger.utils import plot_spectrogram_to_buf
 from src.utils import inf_loop, MetricTracker
-from src.utils import MelSpectrogram
+from src.utils.melspec import MelSpectrogram, MelSpectrogramConfig
 
 
 class Trainer(BaseTrainer):
@@ -42,7 +42,7 @@ class Trainer(BaseTrainer):
         self.skip_oom = skip_oom
         self.config = config
         self.train_dataloader = dataloaders["train"]
-        self.mel = MelSpectrogram()
+        self.mel = MelSpectrogram(MelSpectrogramConfig())
 
         if len_epoch is None:
             # epoch-based training
@@ -52,7 +52,8 @@ class Trainer(BaseTrainer):
             self.train_dataloader = inf_loop(self.train_dataloader)
             self.len_epoch = len_epoch
         self.evaluation_dataloaders = {k: v for k, v in dataloaders.items() if k != "train"}
-        self.lr_scheduler = lr_scheduler
+        self.lr_scheduler_G = lr_scheduler_G
+        self.lr_scheduler_D = lr_scheduler_D
         self.log_step = 50
 
         self.train_metrics = MetricTracker(
@@ -101,7 +102,6 @@ class Trainer(BaseTrainer):
             try:
                 batch, generated_batch = self.process_batch(
                     batch,
-                    is_train=True,
                     metrics=self.train_metrics,
                 )
             except RuntimeError as e:
@@ -154,8 +154,8 @@ class Trainer(BaseTrainer):
     def process_batch(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
 
-        generated_audio = self.generator(**batch)
-        generated_batch["generated_melsepc"] = self.mel(generated_batch["generated_audio"])
+        generated_batch = self.generator(**batch)
+        generated_batch["gen_melsepc"] = self.mel(generated_batch["gen_audio"])
 
         self.optimizer_D.zero_grad()
 
@@ -183,6 +183,11 @@ class Trainer(BaseTrainer):
         self._clip_grad_norm_G()
         self.optimizer_G.step()
 
+        if self.lr_scheduler_D is not None:
+            self.lr_scheduler_D.step()
+        if self.lr_scheduler_G is not None:
+            self.lr_scheduler_G.step()
+
         metrics.update("loss_D", loss_D.item())
         for loss in ["loss_G, mel_loss, fm_loss, adv_loss_G"]:
             metrics.update(loss, generator_losses[loss])
@@ -197,7 +202,7 @@ class Trainer(BaseTrainer):
     def process_batch_eval(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
 
-        generated_audio = self.generator(**batch)
+        generated_batch = self.generator(**batch)
         generated_batch["generated_melsepc"] = self.mel(generated_batch["generated_audio"])
         mel_loss  = F.l1_loss(batch["spectrogram"], generated_batch["generated_melsepc"])
         metrics.update("mel_loss", mel_loss.item())
@@ -217,7 +222,7 @@ class Trainer(BaseTrainer):
         self.generator.eval()
         self.evaluation_metrics.reset()
         with torch.no_grad():
-            batch, generated_batch = process_batch_eval(batch, self.evaluation_metrics)
+            batch, generated_batch = self.process_batch_eval(batch, self.evaluation_metrics)
 
         self.writer.set_step(epoch * self.len_epoch, part)
         self._log_scalars(self.evaluation_metrics)

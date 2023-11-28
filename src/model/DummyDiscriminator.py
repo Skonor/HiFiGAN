@@ -3,11 +3,11 @@ from torch.nn import Sequential
 
 
 
-class DummuyDiscriminator(nn.Module):
+class DummyDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
-        self.msd =
-        self.mpd = 
+        self.msd = None
+        self.mpd = None
 
 
     def forward(self, audio_real, audio_fake):

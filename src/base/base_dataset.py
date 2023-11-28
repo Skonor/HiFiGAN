@@ -38,11 +38,11 @@ class BaseDataset(Dataset):
         audio_wave = self.load_audio(audio_path)
 
         if audio_wave.size(1) >= self.segment_size:
-            max_audio_start = audio.size(1) - self.segment_size
+            max_audio_start = audio_wave.size(1) - self.segment_size
             audio_start = random.randint(0, max_audio_start)
             audio_wave = audio_wave[:, audio_start:audio_start+self.segment_size]
         else:
-            audio_wave = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(1)), 'constant')
+            audio_wave = torch.nn.functional.pad(audio_wave, (0, self.segment_size - audio_wave.size(1)), 'constant')
 
         return {
             "audio": audio_wave,

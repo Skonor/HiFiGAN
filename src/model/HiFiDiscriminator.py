@@ -1,5 +1,6 @@
 import torch.nn as nn 
 import torch.nn.functional as F
+from src.base import BaseModel
 
 
 
@@ -22,7 +23,7 @@ class ScaleDiscriminator(nn.Module):
     def forward(self, x):
         # x : (B, T)
         feature_map = []
-        x.unsqueeze(1) # (B, 1, T)
+        x = x.unsqueeze(1) # (B, 1, T)
         for conv in self.body:
             x = F.leaky_relu(conv(x))
             feature_map.append(x)
@@ -38,7 +39,7 @@ class MultiScaleDiscriminator(nn.Module):
 
         self.discriminators = nn.ModuleList()
         for _ in range(3):
-            self.discriminators.append(PeriodDiscriminator())
+            self.discriminators.append(ScaleDiscriminator())
 
 
 
@@ -57,7 +58,7 @@ class MultiScaleDiscriminator(nn.Module):
 
 
 class PeriodDiscriminator(nn.Module):
-    def __init__(self, period)
+    def __init__(self, period):
         super().__init__()
 
         self.p = period
@@ -103,11 +104,11 @@ class MultiPeriodDiscriminator(nn.Module):
         super().__init__()
 
         self.discriminators = nn.ModuleList([
-            PeriodSicriminator(2),
-            PeriodSicriminator(3),
-            PeriodSicriminator(5),
-            PeriodSicriminator(7),
-            PeriodSicriminator(11)
+            PeriodDiscriminator(2),
+            PeriodDiscriminator(3),
+            PeriodDiscriminator(5),
+            PeriodDiscriminator(7),
+            PeriodDiscriminator(11)
         ])
 
     def forward(self, x):
@@ -119,20 +120,22 @@ class MultiPeriodDiscriminator(nn.Module):
             outputs.append(out)
             feature_maps.append(fmap)
 
+        return out, feature_maps
 
-class HiFiDiscriminator(nn.Module):
+
+class HiFiDiscriminator(BaseModel):
     def __init__(self):
         super().__init__()
         self.msd = MultiScaleDiscriminator()
         self.mpd = MultiPeriodDiscriminator()
 
 
-    def forward(self, audio_real, audio_gen):
+    def forward(self, audio, gen_audio, **batch):
 
-        pred_real_msd, fm_real_msd = self.msd(audio_real)
-        pred_gen_msd, fm_gen_msd = self.msd(audio_gen)
-        pred_real_mpd, fm_real_mpd = self.mpd(audio_real)
-        pred_gen_mpd, fm_gen_mpd = self.mpd(audio_gen)
+        pred_real_msd, fm_real_msd = self.msd(audio)
+        pred_gen_msd, fm_gen_msd = self.msd(gen_audio)
+        pred_real_mpd, fm_real_mpd = self.mpd(audio)
+        pred_gen_mpd, fm_gen_mpd = self.mpd(gen_audio)
 
         return {"pred_real_msd": pred_real_msd,
                 "pred_gen_msd": pred_gen_msd,

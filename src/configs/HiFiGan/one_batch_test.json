@@ -22,25 +22,27 @@
   },
   "data": {
     "train": {
-      "batch_size": 10,
+      "batch_size": 3,
       "num_workers": 0,
       "datasets": [
         {
-          "type": "LJSpeechDataset",
+          "type": "LJspeechDataset",
           "args": {
-            "limit": 10
+            "part": "train",
+            "limit": 3
           }
         }
       ]
     },
     "val": {
-      "batch_size": 10,
+      "batch_size": 3,
       "num_workers": 0,
       "datasets": [
         {
-          "type": "LJSpeechDataset",
+          "type": "LJspeechDataset",
           "args": {
-            "limit": 10
+            "part": "train",
+            "limit": 3
           }
         }
       ]
@@ -60,7 +62,6 @@
       }
     }
   },
-
   "loss": {
     "loss_D": {
       "type": "DiscriminatorLoss",
@@ -71,6 +72,7 @@
       "args": {}
     }
   },
+  "metrics": [],
   "lr_scheduler": {
     "lr_scheduler_G": {
       "type": "OneCycleLR",

@@ -1,7 +1,7 @@
 import logging
 import torch
 from typing import List
-from src.utils import MelSpectrogram
+from src.utils.melspec import MelSpectrogram, MelSpectrogramConfig
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ def collate_fn(dataset_items: List[dict]):
     Collate and pad fields in dataset items
     """
 
-    melspec_gen = MelSpectrogram()
+    melspec_gen = MelSpectrogram(MelSpectrogramConfig())
     
     audio_lengths = []
     audio_path = []

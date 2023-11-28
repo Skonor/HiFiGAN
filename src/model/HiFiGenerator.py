@@ -1,4 +1,4 @@
-from torch.nn as nn
+import torch.nn as nn
 import torch.nn.functional as F
 
 from src.base import BaseModel
@@ -9,15 +9,14 @@ class ResBlock(nn.Module):
         self.k = k
         self.D = D
         
-        self.res_layres = nn.ModuleList()
+        self.res_layers = nn.ModuleList()
         for Dm in D:
-            Dm_block = nn.Sequential()
+            Dm_block = []
             for Dnm in Dm:
-                Dm_block.add_module(nn.LeakyReLU())
-                Dm_block.add_module(nn.Conv1d(channels, channels, kernel=k, dialation=Dnm, 
+                Dm_block.append(nn.LeakyReLU())
+                Dm_block.append(nn.Conv1d(channels, channels, kernel_size=k, dilation=Dnm, 
                                               padding='same'))
-
-            self.res_layers.append(Dm_block)
+            self.res_layers.append(nn.Sequential(*Dm_block))
     
     def forward(self, x):
         for res_layer in self.res_layers:
@@ -40,25 +39,26 @@ class MultiReceptieveFieldFusion(nn.Module):
         return out
 
 
-class HiFiGenerator(nn.Module):
+class HiFiGenerator(BaseModel):
     def __init__(self, ku, kr, Dr, hu=512, num_mels=80):
-        super().__init__():
+        super().__init__()
 
         self.start_conv = nn.Conv1d(num_mels, hu, kernel_size=7, padding='same')
-        self.body = nn.Sequential()
+        self.body = []
         channels = hu
-        for ku_l, l in enumerater(ku):
-            self.body.add_module(nn.LeakyReLU())
-            self.body.add_module(nn.ConvTranspose1d(channels, channels // 2,
+        for ku_l in ku:
+            self.body.append(nn.LeakyReLU())
+            self.body.append(nn.ConvTranspose1d(channels, channels // 2,
                                                     kernel_size=ku_l, stride=ku_l // 2,
                                                     padding = ku_l // 4))
-            self.body.add_module(MultiReceptieveFieldFusion(kr, Dr, channels // 2))
+            self.body.append(MultiReceptieveFieldFusion(kr, Dr, channels // 2))
             channels = channels // 2
 
+        self.body = nn.Sequential(*self.body)
         self.end_conv = nn.Conv1d(channels, 1, kernel_size=7, padding='same')
 
 
-    def forward(self, spectrogram):
+    def forward(self, spectrogram, **batch):
         # spectrogram: (B, H, T)
         x = self.start_conv(spectrogram) 
         x = self.body(x)
