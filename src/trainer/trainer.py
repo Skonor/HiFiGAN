@@ -2,6 +2,8 @@ import random
 from pathlib import Path
 from random import shuffle
 
+
+import torchaudio
 import PIL
 import pandas as pd
 import torch
@@ -14,6 +16,8 @@ from src.base import BaseTrainer
 from src.logger.utils import plot_spectrogram_to_buf
 from src.utils import inf_loop, MetricTracker
 from src.utils.melspec import MelSpectrogram, MelSpectrogramConfig
+
+from src.utils import ROOT_PATH
 
 
 class Trainer(BaseTrainer):
@@ -233,6 +237,24 @@ class Trainer(BaseTrainer):
         #self._log_spectrogram(batch["spectrogram"])
 
         return self.evaluation_metrics.result()
+    
+    def _log_test_audio(self):
+        self.generator.eval()
+        test_path = ROOT_PATH / "test_data"
+        rows = {}
+        for file_name in ["audio_1.wav", "audio_2.wav", "audio_3.wav"]:
+            audio_path = test_path / file_name
+            audio_wave, sr = torchaudio.load(str(audio_path))
+            audio_wave = audio_wave[0:1, :]
+            spectrogram = self.mel(audio_wave.to(self.device))
+            gen_audio = self.generator(spectrogram=spectrogram)["gen_audio"]
+            
+            rows[audio_path.name] = {
+                "gen_audio": self.writer.wandb.Audio(gen_audio.squeeze().detach().cpu().numpy(), sample_rate=sr),
+            }
+        
+        self.writer.add_table("generated_test", pd.DataFrame.from_dict(rows, orient="index"))
+
 
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
