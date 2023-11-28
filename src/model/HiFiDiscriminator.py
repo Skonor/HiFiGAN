@@ -85,9 +85,10 @@ class PeriodDiscriminator(nn.Module):
         x = x.reshape((B, reshape_dim, self.p)).unsqueeze(1) # (B, 1, T / p, p)
         feature_map = []
         for conv in self.body:
-            x = conv(x)
+            x = F.leaky_relu(conv(x))
             feature_map.append(x)
-
+        
+        x = self.last_conv(x)
         x = x.flatten(1, -1)
         
         return x, feature_map
@@ -121,7 +122,7 @@ class MultiPeriodDiscriminator(nn.Module):
             outputs.append(out)
             feature_maps.append(fmap)
 
-        return out, feature_maps
+        return outputs, feature_maps
 
 
 class HiFiDiscriminator(BaseModel):
