@@ -20,6 +20,7 @@ class ResBlock(nn.Module):
             self.res_layers.append(nn.Sequential(*Dm_block))
     
     def forward(self, x):
+        x = 0.
         for res_layer in self.res_layers:
             x = x + res_layer(x)
         return x
