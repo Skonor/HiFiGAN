@@ -10,6 +10,7 @@ from src.base.base_dataset import BaseDataset
 from src.utils import ROOT_PATH
 from speechbrain.utils.data_utils import download_file
 from tqdm import tqdm
+from src.utils import ROOT_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,11 @@ class LJspeechDataset(BaseDataset):
     def __init__(self, part, data_dir=None, *args, **kwargs):
         if data_dir is None:
             data_dir = ROOT_PATH / "data" / "datasets" / "ljspeech"
-            data_dir.mkdir(exist_ok=True, parents=True)
+
         self._data_dir = data_dir
+        self.index_dir = ROOT_PATH / "data" / "datasets" / "ljspeech"
+        self.index_dir.mkdir(exist_ok=True, parents=True)
+
         index = self._get_or_load_index(part)
 
         super().__init__(index, *args, **kwargs)
@@ -48,7 +52,7 @@ class LJspeechDataset(BaseDataset):
 
 
     def _get_or_load_index(self, part):
-        index_path = self._data_dir / f"{part}_index.json"
+        index_path = self.index_dir / f"{part}_index.json"
         if index_path.exists():
             with index_path.open() as f:
                 index = json.load(f)
