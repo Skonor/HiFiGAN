@@ -42,7 +42,7 @@ class Trainer(BaseTrainer):
         self.skip_oom = skip_oom
         self.config = config
         self.train_dataloader = dataloaders["train"]
-        self.mel = MelSpectrogram(MelSpectrogramConfig())
+        self.mel = MelSpectrogram(MelSpectrogramConfig()).to(self.device)
 
         if len_epoch is None:
             # epoch-based training
