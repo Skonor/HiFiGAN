@@ -42,7 +42,8 @@ class Trainer(BaseTrainer):
             len_epoch=None,
             skip_oom=True,
     ):
-        super().__init__(generator, discriminator, criterion_G, criterion_D, optimizer_G, optimizer_D, metrics, config, device)
+        super().__init__(generator, discriminator, criterion_G, criterion_D, optimizer_G, 
+                         optimizer_D, metrics, config, device, lr_scheduler_G, lr_scheduler_D)
         self.skip_oom = skip_oom
         self.config = config
         self.train_dataloader = dataloaders["train"]

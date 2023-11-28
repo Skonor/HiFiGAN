@@ -12,7 +12,8 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, generator, discriminator, criterion_G, criterion_D, optimizer_G, optimizer_D, metrics, config, device):
+    def __init__(self, generator, discriminator, criterion_G, criterion_D, optimizer_G, 
+                 optimizer_D, metrics, config, device, lr_scheduler_G, lr_scheduler_D):
         self.device = device
         self.config = config
         self.logger = config.get_logger("trainer", config["trainer"]["verbosity"])
@@ -24,6 +25,8 @@ class BaseTrainer:
         self.criterion_D = criterion_D
         self.optimizer_G = optimizer_G
         self.optimizer_D = optimizer_D
+        self.lr_scheduler_G = lr_scheduler_G
+        self.lr_scheduler_D = lr_scheduler_D
 
         # for interrupt saving
         self._last_epoch = 0
@@ -150,6 +153,8 @@ class BaseTrainer:
             "discriminator_state_dict": self.discriminator.state_dict(),
             "optimizer_g": self.optimizer_g.state_dict(),
             "optimizer_d": self.optimizer_d.state_dict(),
+            "lr_scheduler_g": self.lr_scheduler_G.state_dict(),
+            "lr_scheduler_d": self.lr_scheduler_D.state_dict(),
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
@@ -197,6 +202,8 @@ class BaseTrainer:
         else:
             self.optimizer_g.load_state_dict(checkpoint["optimizer_g"])
             self.optimizer_d.load_state_dict(checkpoint["optimizer_d"])
+            self.lr_scheduler_D.load_state_dict(checkpoint["lr_scheduler_d"])
+            self.lr_scheduler_G.load_state_dict(checkpoint["lr_scheduler_g"])
 
         self.logger.info(
             "Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch)
