@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 URL_LINKS = {
-    'HiFi_70': 'https://drive.google.com/uc?id=1UulNNh-eWJwRLQo0CWVOqc31aD3ePDfN',
+    'HiFi_70': 'https://drive.google.com/uc?id=1qjklBCwLfF5Ddjtybs2VvBPJ5BhoIuAb',
 }
 
 def main():
