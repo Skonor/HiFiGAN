@@ -1,5 +1,5 @@
 {
-  "name": "one_batch_test",
+  "name": "HiFi_200epochs",
   "n_gpu": 1,
   "preprocessing": {
     "sr": 22050
@@ -79,9 +79,9 @@
     }
   },
   "trainer": {
-    "epochs": 100,
+    "epochs": 200,
     "save_dir": "saved/",
-    "save_period": 4,
+    "save_period": 10,
     "verbosity": 0,
     "visualize": "wandb",
     "wandb_project": "HiFiGan_project"
