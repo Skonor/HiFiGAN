@@ -151,8 +151,8 @@ class BaseTrainer:
             "epoch": epoch,
             "generator_state_dict": self.generator.state_dict(),
             "discriminator_state_dict": self.discriminator.state_dict(),
-            "optimizer_g": self.optimizer_g.state_dict(),
-            "optimizer_d": self.optimizer_d.state_dict(),
+            "optimizer_g": self.optimizer_G.state_dict(),
+            "optimizer_d": self.optimizer_D.state_dict(),
             "lr_scheduler_g": self.lr_scheduler_G.state_dict(),
             "lr_scheduler_d": self.lr_scheduler_D.state_dict(),
             "monitor_best": self.mnt_best,
@@ -200,8 +200,8 @@ class BaseTrainer:
                 "from that of checkpoint. Optimizer parameters not being resumed."
             )
         else:
-            self.optimizer_g.load_state_dict(checkpoint["optimizer_g"])
-            self.optimizer_d.load_state_dict(checkpoint["optimizer_d"])
+            self.optimizer_G.load_state_dict(checkpoint["optimizer_g"])
+            self.optimizer_D.load_state_dict(checkpoint["optimizer_d"])
             self.lr_scheduler_D.load_state_dict(checkpoint["lr_scheduler_d"])
             self.lr_scheduler_G.load_state_dict(checkpoint["lr_scheduler_g"])
 
