@@ -97,13 +97,6 @@ class PeriodDiscriminator(nn.Module):
         return x, feature_map
 
 
-
-
-
-
-
-
-
 class MultiPeriodDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -128,7 +121,7 @@ class MultiPeriodDiscriminator(nn.Module):
         return outputs, feature_maps
 
 
-class HiFiDiscriminator(BaseModel):
+class HiFiDiscriminatorB(BaseModel):
     def __init__(self):
         super().__init__()
         self.msd = MultiScaleDiscriminator()
