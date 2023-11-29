@@ -193,7 +193,7 @@ class BaseTrainer:
                 checkpoint["config"]["optimizers"]["optimizer_G"] != self.config["optimizers"]["optimizer_G"] or
                 checkpoint["config"]["optimizers"]["optimizer_D"] != self.config["optimizers"]["optimizer_D"] or
                 checkpoint["config"]["lr_scheduler"]["lr_scheduler_G"] != self.config["lr_scheduler"]["lr_scheduler_G"] or
-                checkpoint["config"]["lr_scheduler"]["lr_scheduler_D"] != self.config["lr_schedulers"]["lr_scheduler_D"]
+                checkpoint["config"]["lr_scheduler"]["lr_scheduler_D"] != self.config["lr_scheduler"]["lr_scheduler_D"]
         ):
             self.logger.warning(
                 "Warning: Optimizer or lr_scheduler given in config file is different "
