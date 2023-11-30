@@ -1,0 +1,89 @@
+{
+  "name": "HiFi_140epochs",
+  "n_gpu": 1,
+  "preprocessing": {
+    "sr": 22050
+  },
+  "arch": {
+    "generator": {
+      "type": "HiFiGenerator",
+      "args": {
+        "ku": [16, 16, 4, 4],
+        "kr": [3, 7, 11],
+        "Dr":[[[1, 1], [3, 1], [5, 1]],
+              [[1, 1], [3, 1], [5, 1]],
+              [[1, 1], [3, 1], [5, 1]]]
+      }
+    },
+    "discriminator": {
+      "type": "HiFiDiscriminator",
+      "args": {}
+    }
+  },
+  "data": {
+    "train": {
+      "batch_size": 16,
+      "num_workers": 0,
+      "datasets": [
+        {
+          "type": "LJspeechDataset",
+          "args": {
+            "data_dir": "/kaggle/input/ljspeech/LJSpeech-1.1",
+            "part": "wavs"
+          }
+        }
+      ]
+    }
+  },
+  "optimizers": {
+    "optimizer_G": {
+      "type": "AdamW",
+      "args": {
+        "lr": 2e-4,
+        "betas": [0.8, 0.99],
+        "weight_decay": 0.1
+      }
+    },
+    "optimizer_D": {
+      "type": "AdamW",
+      "args": {
+        "lr": 2e-4,
+        "betas": [0.8, 0.99],
+        "weight_decay": 0.1
+      }
+    }
+  },
+  "loss": {
+    "loss_D": {
+      "type": "DiscriminatorLoss",
+      "args": {}
+    },
+    "loss_G": {
+      "type": "GeneratorLoss",
+      "args": {}
+    }
+  },
+  "metrics": [],
+  "lr_scheduler": {
+    "lr_scheduler_G": {
+      "type": "ExponentialLR",
+      "args": {
+        "gamma": 0.999
+      }
+    },
+    "lr_scheduler_D": {
+      "type": "ExponentialLR",
+      "args": {
+        "gamma": 0.999
+      }
+    }
+  },
+  "trainer": {
+    "epochs": 140,
+    "save_dir": "saved/",
+    "save_period": 10,
+    "verbosity": 0,
+    "visualize": "wandb",
+    "wandb_project": "HiFiGan_project"
+  }
+}
